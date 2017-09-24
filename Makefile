@@ -22,10 +22,10 @@ OBJ = $(patsubst $(SRC_DIR)/%.c, $(BIN_DIR)/%.o, $(SRC))
 BIN = $(BIN_DIR)/pc_plat
 
 CC = gcc
-# CFLAGS = -Wall -g -I$(INC_DIR)/
-CFLAGS = -Wall -O2 -DNDEBUG -I$(INC_DIR)/
+CFLAGS = -Wall -g -I$(INC_DIR)/
+#CFLAGS = -Wall -O2 -DNDEBUG -I$(INC_DIR)/
 
-all: $(BIN)
+all: $(BIN) run_pc
 
 ifneq "$(MAKECMDGOALS)" "clean"
     -include $(DEP)
@@ -48,4 +48,15 @@ $(BIN): $(OBJ)
 
 clean:
 	rm -rf $(BIN_DIR);
+
+run_grp:
+	./bin/pc_plat -g rfg -f wustl -r rule_trace/rules/origin/fw1_10K
+
+run_pc:
+#	./bin/pc_plat -p hs -f wustl_g -r rule_trace/rules/rfg/fw1_10K -t rule_trace/traces/origin/fw1_10K_trace
+#	./bin/pc_plat -g rfg -f wustl -r rule_trace/rules/origin/fw1_10K
+#	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/acl1_10K -t rule_trace/traces/origin/acl1_10K_trace
+#	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw1_10K -t rule_trace/traces/origin/fw1_10K_trace
+	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw1 -t rule_trace/traces/origin/fw2_trace
+#	gdb -ex=r --args ./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw2 -t rule_trace/traces/origin/fw2_trace
 

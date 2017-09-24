@@ -93,26 +93,71 @@ int main(int argc, char *argv[])
     /*
      * Loading classifier
      */
-    if (plat_cfg.rule_fmt == RULE_FMT_WUSTL) {
-        pa.subsets = calloc(1, sizeof(*pa.subsets));
-        if (!pa.subsets) {
-            perror("Cannot allocate memory for subsets");
-            exit(-1);
-        }
+	if (plat_cfg.rule_fmt == RULE_FMT_WUSTL) {
+		pa.subsets = calloc(1, sizeof(*pa.subsets));
+		if (!pa.subsets) {
+			perror("Cannot allocate memory for subsets");
+			exit(-1);
+		}
 
-        if (load_rules(pa.subsets, plat_cfg.s_rule_file)) {
-            exit(-1);
-        }
+		if (load_rules(pa.subsets, plat_cfg.s_rule_file)) {
+			exit(-1);
+		}
 
-        pa.subset_num = 1;
-        pa.rule_num = pa.subsets[0].rule_num;
+		pa.subset_num = 1;
+		pa.rule_num = pa.subsets[0].rule_num;
 
-    } else if (plat_cfg.rule_fmt == RULE_FMT_WUSTL_G) {
+#if 1
+		// grouping 
+		printf("Grouping ... \n");
+		fflush(NULL);
+
+		// call rf_group();
+		if (f_group(GRP_ALGO_RFG, &pa_grp, &pa)) {
+		}
+
+		unload_partition(&pa);
+
+		pa.subset_num = pa_grp.subset_num;
+		pa.rule_num = pa_grp.rule_num;
+		pa.subsets = pa_grp.subsets;
+
+		pa_grp.subset_num = 0;
+		pa_grp.rule_num = 0;
+		pa_grp.subsets = NULL;
+		unload_partition(&pa_grp);
+
+		printf("subset_num=%d, rule=%d \n", 
+			   pa.subset_num, pa.rule_num);
+		fflush(NULL);
+
+#endif
+#if 0
+		printf("Saving  ... \n");
+		fflush(NULL);
+		dump_partition(GRP_FILE, &pa_grp);
+
+		printf("Loading ... \n");
+		fflush(NULL);
+
+		if (load_partition(&pa, GRP_FILE)) {
+			exit(-1);
+		}
+
+		printf("pa: subset_num=%d, rule=%d \n", 
+			   pa.subset_num, pa.rule_num);
+		fflush(NULL);
+#endif
+
+	} else if (plat_cfg.rule_fmt == RULE_FMT_WUSTL_G) {
         if (load_partition(&pa, plat_cfg.s_rule_file)) {
             exit(-1);
         }
 
         if (plat_cfg.grp_algo != GRP_ALGO_INV) {
+			printf("Reverting ... \n");
+			fflush(NULL);
+
             struct rule_set *p_rs = calloc(1, sizeof(*p_rs));
             if (!p_rs) {
                 perror("Cannot allocate memory for subsets");
@@ -134,30 +179,31 @@ int main(int argc, char *argv[])
     /*
      * Grouping
      */
-    if (plat_cfg.grp_algo != GRP_ALGO_INV) {
-        fprintf(stderr, "Grouping\n");
+	if (plat_cfg.grp_algo != GRP_ALGO_INV) {
+		fprintf(stderr, "Grouping\n");
 
-        clock_gettime(CLOCK_MONOTONIC, &starttime);
+		clock_gettime(CLOCK_MONOTONIC, &starttime);
 
-        assert(pa.subset_num == 1);
-        if (f_group(plat_cfg.grp_algo, &pa_grp, &pa)) {
-            fprintf(stderr, "Grouping fail\n");
-            exit(-1);
-        }
+		assert(pa.subset_num == 1);
+		// call rf_group();
+		if (f_group(plat_cfg.grp_algo, &pa_grp, &pa)) {
+			fprintf(stderr, "Grouping fail\n");
+			exit(-1);
+		}
 
-        clock_gettime(CLOCK_MONOTONIC, &stoptime);
+		clock_gettime(CLOCK_MONOTONIC, &stoptime);
 
-        fprintf(stderr, "Grouping pass\n");
-        fprintf(stderr, "Time for grouping: %"PRIu64"(us)\n",
-                f_make_timediff(stoptime, starttime));
+		fprintf(stderr, "Grouping pass\n");
+		fprintf(stderr, "Time for grouping: %"PRIu64"(us)\n",
+				f_make_timediff(stoptime, starttime));
 
-        dump_partition(GRP_FILE, &pa_grp);
+		dump_partition(GRP_FILE, &pa_grp);
 
-        unload_partition(&pa_grp);
-        unload_partition(&pa);
+		unload_partition(&pa_grp);
+		unload_partition(&pa);
 
-        return 0;
-    }
+		return 0;
+	}
 
     /*
      * Building
@@ -166,7 +212,9 @@ int main(int argc, char *argv[])
 
     clock_gettime(CLOCK_MONOTONIC, &starttime);
 
+    //call hs_build()
     if (f_build(plat_cfg.pc_algo, &result, &pa)) {
+    //if (f_build(plat_cfg.pc_algo, &result, &pa_grp)) {
         fprintf(stderr, "Building fail\n");
         exit(-1);
     }
@@ -194,9 +242,10 @@ int main(int argc, char *argv[])
 
     clock_gettime(CLOCK_MONOTONIC, &starttime);
 
+    // hs_search()
     if (f_search(plat_cfg.pc_algo, &t, &result)) {
         fprintf(stderr, "Searching fail\n");
-        exit(-1);
+        //exit(-1);
     }
 
     clock_gettime(CLOCK_MONOTONIC, &stoptime);

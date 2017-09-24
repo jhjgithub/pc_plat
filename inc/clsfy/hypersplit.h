@@ -36,7 +36,7 @@ struct hs_tree {
     int inode_num;
     int enode_num;
     int depth_max;
-    double depth_avg;
+    //double depth_avg;
 };
 
 struct hs_result {

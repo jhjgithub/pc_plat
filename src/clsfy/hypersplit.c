@@ -18,7 +18,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <limits.h>
-#include <float.h>
+//#include <float.h>
 #include <sys/queue.h>
 
 #include "common/impl.h"
@@ -54,13 +54,10 @@ static void f_hs_term(struct hs_runtime *p_hs_rt);
 static int f_hs_trigger(struct hs_runtime *p_hs_rt);
 static int f_hs_process(struct hs_runtime *p_hs_rt);
 static int f_hs_gather(struct hs_runtime *p_hs_rt);
-
-static int f_hs_dim_decision(struct hs_runtime *p_hs_rt,
-        const struct hs_queue_entry *p_wqe);
+static int f_hs_dim_decision(struct hs_runtime *p_hs_rt, const struct hs_queue_entry *p_wqe);
 static uint32_t f_hs_pnt_decision(const struct shadow_range *p_shadow_rng);
 static int f_hs_spawn(struct hs_runtime *p_hs_rt, struct hs_queue_entry *p_wqe,
-        int split_dim, int is_inplace);
-
+int split_dim, int is_inplace);
 static int f_space_is_fully_covered(uint32_t (*left)[2], uint32_t (*right)[2]);
 
 
@@ -118,6 +115,8 @@ int hs_build(void *built_result, const struct partition *p_pa)
 
     /* Term */
     f_hs_term(&hs_rt);
+
+	//printf("Depth AVG: %g \n", p_hs_result->trees->depth_avg);
 
     return 0;
 
@@ -238,6 +237,8 @@ static int f_hs_init(struct hs_runtime *p_hs_rt, const struct partition *p_pa)
         return -ENOMEM;
     }
 
+	//trees->depth_avg = 1000;
+
     MPOOL_INIT(&p_hs_rt->node_pool, p2roundup(p_pa->rule_num) << 1);
     STAILQ_INIT(&p_hs_rt->wqh);
     p_hs_rt->p_pa = p_pa;
@@ -303,7 +304,7 @@ static int f_hs_trigger(struct hs_runtime *p_hs_rt)
         p_root->dim = DIM_SIP;
         p_root->lchild = p_rs->rules[0].pri;
         p_tree->inode_num = p_tree->enode_num = p_tree->depth_max = 1;
-        p_tree->depth_avg = 1.0;
+        //p_tree->depth_avg = 1.0;
 
     /* The tree root needs split */
     } else {
@@ -398,7 +399,7 @@ static int f_hs_gather(struct hs_runtime *p_hs_rt)
     MPOOL_BASE(p_node_pool) = NULL;
     p_tree = &p_hs_rt->trees[p_hs_rt->cur];
     p_tree->p_root = p_root;
-    p_tree->depth_avg /= p_tree->enode_num;
+    //p_tree->depth_avg /= p_tree->enode_num;
     assert(p_tree->inode_num == MPOOL_COUNT(p_node_pool));
     assert(p_tree->enode_num == p_tree->inode_num + 1);
 
@@ -415,7 +416,13 @@ static int f_hs_dim_decision(struct hs_runtime *p_hs_rt,
     /* float measure, measure_min = FLT_MAX; */
     long measure, measure_min = LONG_MAX;
 
-    assert(p_wqe && p_wqe->rule_id && p_wqe->rule_num > 1);
+	printf("p_wqe=%p, ruleid=%d, rule_num=%d \n", 
+		   p_wqe, p_wqe->rule_id, p_wqe->rule_num);
+
+   	//assert(p_wqe && p_wqe->rule_id && p_wqe->rule_num > 1);
+	if (p_wqe->rule_num < 2) {
+		return 0;
+	}
 
     shadow_pnts = p_hs_rt->shadow_pnts;
     shadow_rngs = p_hs_rt->shadow_rngs;
@@ -441,6 +448,7 @@ static int f_hs_dim_decision(struct hs_runtime *p_hs_rt,
         }
     }
 
+	printf("dim=%d \n", dim);
     return dim;
 }
 
@@ -495,7 +503,7 @@ static int f_hs_spawn(struct hs_runtime *p_hs_rt, struct hs_queue_entry *p_wqe,
     rid = new_rule_id[0];
     if (f_space_is_fully_covered(p_wqe->space, p_rs->rules[rid].dims)) {
         p_tree->enode_num++;
-        p_tree->depth_avg += p_wqe->depth;
+        //p_tree->depth_avg += p_wqe->depth;
         if (p_wqe->depth > p_tree->depth_max) {
             p_tree->depth_max = p_wqe->depth;
         }
