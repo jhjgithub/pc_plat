@@ -631,7 +631,8 @@ int main(int argc, char *argv[])
 {
 	rule_set_t ruleset;
 	hs_node_t rootnode;
-	char filename[40] = "./acl1";               /* filter file name */
+	//char filename[40] = "./acl1";               /* filter file name */
+	char filename[] = "../../rule_trace/rules/origin/fw1_10K";
 
 	gettimeofday(&gStartTime, NULL);
 	/* load rules from file */

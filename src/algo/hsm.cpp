@@ -6,11 +6,33 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #include <time.h>
 #include <sched.h>   //cpu_set_t , CPU_SET
 //#include <memory.h>
 //#include <windows.h>
 #include "hsm.h"
+
+struct timespec diff_time(char *msg, struct timespec start, struct timespec end, int cnt)
+{
+	struct timespec temp;
+
+	if ((end.tv_nsec-start.tv_nsec)<0) {
+		temp.tv_sec = end.tv_sec-start.tv_sec-1;
+		temp.tv_nsec = 1000000000+end.tv_nsec-start.tv_nsec;
+	} else {
+		temp.tv_sec = end.tv_sec-start.tv_sec;
+		temp.tv_nsec = end.tv_nsec-start.tv_nsec;
+	}
+
+	uint64_t nsec = temp.tv_sec * 1000000000 + temp.tv_nsec;
+	uint64_t per_nsec = nsec / cnt;
+
+	printf("%s Exec time: %lu.%lu sec, Count:%d, Per nsec:%lu \n", msg, 
+			temp.tv_sec, temp.tv_nsec, cnt, per_nsec);
+
+	return temp;
+}
 
 // *** function for reading ip range , called by ReadFilter ***
 // call form: ReadIPRange(fp,tempfilt->IPrange)
@@ -210,7 +232,8 @@ void LoadPackages(FILE *fp, PACKAGESET * packageset)
 void ReadFilterFile()
 {
 	FILE *fp;	// filter set file pointer
-	char filename[] = "set0.txt";
+	//char filename[] = "set0.txt";
+	char filename[] = "../../rule_trace/rules/origin/fw1_1K";
 	fp = fopen(filename,"r");
 	if (fp == NULL) 
 	{
@@ -663,7 +686,8 @@ void Lookup()
 	
 	// Read packages from file packageset.txt
 	FILE *fp;						
-	char filename[] = "packageset.txt";
+	//char filename[] = "packageset.txt";
+	char filename[] = "../../rule_trace/traces/origin/fw1_1K_trace";
 	fp = fopen(filename,"r");
 	if (fp == NULL) 
 	{
@@ -695,9 +719,8 @@ void Lookup()
 		lookupResult[j] = *(PLT + AMTid * listEqs[1]->nCES + PMTid);
 	}
 
-	//lookuptime = GetTickCount() - lookuptime;
-	printf("Lookup finished!\n");
-	//printf("Time for lookup is %d ms\n",lookuptime);
+	clock_gettime(cid, &end);
+	diff_time("Search", begin, end, packageset.numPackages);
 
 	// store lookupResult int lookupResult.txt
 	char filename1[] = "lookupResult.txt";
@@ -785,8 +808,11 @@ int main(int argc, char* argv[])
 	// check the result of the loaded filters
 	//	CheckData();
 
-	//int time;
-	//time = GetTickCount();
+	struct timespec begin, end;
+	clockid_t cid;
+	cid = CLOCK_MONOTONIC;
+	clock_gettime(cid, &begin);
+
 	// Read filtset dimension range into dynamic array
 	CreatePointArray();
 
@@ -799,8 +825,9 @@ int main(int argc, char* argv[])
 	// Create PLT
 	CreatePLT();
 
-	//time = GetTickCount() - time;
-	//printf("Time used for preprocessing is %d ms\n",time);
+	clock_gettime(cid, &end);
+	diff_time("Build", begin, end, 100);
+	
 	// CountMemory
 	CountMemory();
 

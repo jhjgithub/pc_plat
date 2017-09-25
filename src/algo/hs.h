@@ -50,10 +50,10 @@ struct FILTSET {
 };
 
 
-struct TPOINT {
+typedef struct TPOINT_s {
 	unsigned int	value;
 	unsigned char	flag;
-};
+}TPOINT;
 
 struct FRAGNODE {
 	unsigned int	start;

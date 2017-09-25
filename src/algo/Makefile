@@ -8,7 +8,7 @@ CFLAGS+=-W -Wall -Wextra -Wno-unused-function -Wno-unused-parameter
 LDFLAGS=-pthread -lpthread
 
 OBJDIR=obj
-SRCS = hsm.cpp
+SRCS = hsm.c
 DEPS = hsm.h 
 
 
@@ -30,7 +30,10 @@ all: tag $(OBJDIR) $(BIN) tag
 run: $(BIN)
 	./$(BIN)
 
-$(BIN): $(OBJS)
+#$(BIN): $(OBJS)
+#	$(CC) ${LDFLAGS} -o $@ $^ $(CFLAGS)
+
+hsm_test: hsm.cpp
 	$(CC) ${LDFLAGS} -o $@ $^ $(CFLAGS)
 
 tag:
@@ -66,5 +69,7 @@ tests:
 		coucal.o tests.o -o tests 
 
 format:
-	 uncrustify --no-backup --mtime -c ./formatter.cfg *.[ch]
+	 uncrustify --no-backup --mtime -c ./formatter.cfg *.c
+	 uncrustify --no-backup --mtime -c ./formatter.cfg *.h
+	 uncrustify --no-backup --mtime -c ./formatter.cfg *.cpp
 
