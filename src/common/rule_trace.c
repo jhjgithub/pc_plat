@@ -46,6 +46,9 @@ int load_rules(struct rule_set *p_rs, const char *s_rf)
         return -ENOMEM;
     }
 
+	char line[2048];
+	int len;
+
     /* scan rule file */
     while (!feof(fp_rule)) {
         if (i >= RULE_MAX) {
@@ -54,7 +57,27 @@ int load_rules(struct rule_set *p_rs, const char *s_rf)
             goto err;
         }
 
+#if 1
+		line[0] = '\0';
+
+		if (fgets(line, 2048, fp_rule) == EOF) {
+			break;
+		}
+
+		len = strlen(line);
+		if (line[0] == '#') {
+			continue;
+		}
+		else if (len < 1) {
+			break;
+		}
+
+		//printf("line=[%s]\n", line);
+
+        if (sscanf(line, WUSTL_RULE_FMT_SCN,
+#else
         if (fscanf(fp_rule, WUSTL_RULE_FMT_SCN,
+#endif
             &src_ip_0, &src_ip_1, &src_ip_2, &src_ip_3, &src_ip_mask,
             &dst_ip_0, &dst_ip_1, &dst_ip_2, &dst_ip_3, &dst_ip_mask,
             &rules[i].dims[DIM_SPORT][0], &rules[i].dims[DIM_SPORT][1],

@@ -107,7 +107,6 @@ int main(int argc, char *argv[])
 		pa.subset_num = 1;
 		pa.rule_num = pa.subsets[0].rule_num;
 
-#if 1
 		// grouping 
 		printf("Grouping ... \n");
 		fflush(NULL);
@@ -116,6 +115,7 @@ int main(int argc, char *argv[])
 		if (f_group(GRP_ALGO_RFG, &pa_grp, &pa)) {
 		}
 
+#if 1
 		unload_partition(&pa);
 
 		pa.subset_num = pa_grp.subset_num;
@@ -127,12 +127,10 @@ int main(int argc, char *argv[])
 		pa_grp.subsets = NULL;
 		unload_partition(&pa_grp);
 
-		printf("subset_num=%d, rule=%d \n", 
-			   pa.subset_num, pa.rule_num);
+		printf("subset_num=%d, rule=%d \n", pa.subset_num, pa.rule_num);
 		fflush(NULL);
 
-#endif
-#if 0
+#else
 		printf("Saving  ... \n");
 		fflush(NULL);
 		dump_partition(GRP_FILE, &pa_grp);
