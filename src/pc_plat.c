@@ -56,210 +56,6 @@ struct platform_config {
 };
 
 
-static void f_print_help(void);
-static void f_parse_args(struct platform_config *p_plat_cfg,
-        int argc, char *argv[]);
-static uint64_t f_make_timediff(const struct timespec stop,
-        const struct timespec start);
-
-static int f_build(int pc_algo, void *built_result,
-        const struct partition *p_pa);
-static int f_group(int grp_algo, struct partition *p_pa_grp,
-        const struct partition *p_pa);
-static int f_search(int pc_algo, const struct trace *p_t,
-        const void *built_result);
-static void f_destroy(int pc_algo, void *built_result);
-
-
-int main(int argc, char *argv[])
-{
-    struct timespec starttime, stoptime;
-    uint64_t timediff;
-
-    struct partition pa, pa_grp;
-    struct trace t;
-    void *result = NULL;
-
-    struct platform_config plat_cfg = {
-        .s_rule_file = NULL,
-        .s_trace_file = NULL,
-        .rule_fmt = RULE_FMT_INV,
-        .pc_algo = PC_ALGO_INV,
-        .grp_algo = GRP_ALGO_INV
-    };
-
-    f_parse_args(&plat_cfg, argc, argv);
-
-    /*
-     * Loading classifier
-     */
-	if (plat_cfg.rule_fmt == RULE_FMT_WUSTL) {
-		pa.subsets = calloc(1, sizeof(*pa.subsets));
-		if (!pa.subsets) {
-			perror("Cannot allocate memory for subsets");
-			exit(-1);
-		}
-
-		if (load_rules(pa.subsets, plat_cfg.s_rule_file)) {
-			exit(-1);
-		}
-
-		pa.subset_num = 1;
-		pa.rule_num = pa.subsets[0].rule_num;
-
-		// grouping 
-		printf("Grouping ... \n");
-		fflush(NULL);
-
-		// call rf_group();
-		if (f_group(GRP_ALGO_RFG, &pa_grp, &pa)) {
-		}
-
-#if 1
-		unload_partition(&pa);
-
-		pa.subset_num = pa_grp.subset_num;
-		pa.rule_num = pa_grp.rule_num;
-		pa.subsets = pa_grp.subsets;
-
-		pa_grp.subset_num = 0;
-		pa_grp.rule_num = 0;
-		pa_grp.subsets = NULL;
-		unload_partition(&pa_grp);
-
-		printf("subset_num=%d, rule=%d \n", pa.subset_num, pa.rule_num);
-		fflush(NULL);
-
-#else
-		printf("Saving  ... \n");
-		fflush(NULL);
-		dump_partition(GRP_FILE, &pa_grp);
-
-		printf("Loading ... \n");
-		fflush(NULL);
-
-		if (load_partition(&pa, GRP_FILE)) {
-			exit(-1);
-		}
-
-		printf("pa: subset_num=%d, rule=%d \n", 
-			   pa.subset_num, pa.rule_num);
-		fflush(NULL);
-#endif
-
-	} else if (plat_cfg.rule_fmt == RULE_FMT_WUSTL_G) {
-        if (load_partition(&pa, plat_cfg.s_rule_file)) {
-            exit(-1);
-        }
-
-        if (plat_cfg.grp_algo != GRP_ALGO_INV) {
-			printf("Reverting ... \n");
-			fflush(NULL);
-
-            struct rule_set *p_rs = calloc(1, sizeof(*p_rs));
-            if (!p_rs) {
-                perror("Cannot allocate memory for subsets");
-                exit(-1);
-            }
-
-            if (revert_partition(p_rs, &pa)) {
-                exit(-1);
-            }
-
-            unload_partition(&pa);
-
-            pa.subsets = p_rs;
-            pa.subset_num = 1;
-            pa.rule_num = pa.subsets[0].rule_num;
-        }
-    }
-
-    /*
-     * Grouping
-     */
-	if (plat_cfg.grp_algo != GRP_ALGO_INV) {
-		fprintf(stderr, "Grouping\n");
-
-		clock_gettime(CLOCK_MONOTONIC, &starttime);
-
-		assert(pa.subset_num == 1);
-		// call rf_group();
-		if (f_group(plat_cfg.grp_algo, &pa_grp, &pa)) {
-			fprintf(stderr, "Grouping fail\n");
-			exit(-1);
-		}
-
-		clock_gettime(CLOCK_MONOTONIC, &stoptime);
-
-		fprintf(stderr, "Grouping pass\n");
-		fprintf(stderr, "Time for grouping: %"PRIu64"(us)\n",
-				f_make_timediff(stoptime, starttime));
-
-		dump_partition(GRP_FILE, &pa_grp);
-
-		unload_partition(&pa_grp);
-		unload_partition(&pa);
-
-		return 0;
-	}
-
-    /*
-     * Building
-     */
-    fprintf(stderr, "Building\n");
-
-    clock_gettime(CLOCK_MONOTONIC, &starttime);
-
-    //call hs_build()
-    if (f_build(plat_cfg.pc_algo, &result, &pa)) {
-    //if (f_build(plat_cfg.pc_algo, &result, &pa_grp)) {
-        fprintf(stderr, "Building fail\n");
-        exit(-1);
-    }
-
-    clock_gettime(CLOCK_MONOTONIC, &stoptime);
-
-    fprintf(stderr, "Building pass\n");
-    fprintf(stderr, "Time for building: %"PRIu64"(us)\n",
-            f_make_timediff(stoptime, starttime));
-
-    unload_partition(&pa);
-
-    if (!plat_cfg.s_trace_file) {
-        f_destroy(plat_cfg.pc_algo, &result);
-        return 0;
-
-    } else if (load_trace(&t, plat_cfg.s_trace_file)) {
-        exit(-1);
-    }
-
-    /*
-     * Searching
-     */
-    fprintf(stderr, "Searching\n");
-
-    clock_gettime(CLOCK_MONOTONIC, &starttime);
-
-    // hs_search()
-    if (f_search(plat_cfg.pc_algo, &t, &result)) {
-        fprintf(stderr, "Searching fail\n");
-        //exit(-1);
-    }
-
-    clock_gettime(CLOCK_MONOTONIC, &stoptime);
-    timediff = f_make_timediff(stoptime, starttime);
-
-    fprintf(stderr, "Searching pass\n");
-    fprintf(stderr, "Time for searching: %"PRIu64"(us)\n", timediff);
-    fprintf(stderr, "Searching speed: %lld(pps)\n",
-            (t.pkt_num * 1000000ULL) / timediff);
-
-    unload_trace(&t);
-    f_destroy(plat_cfg.pc_algo, &result);
-
-    return 0;
-}
-
 static void f_print_help(void)
 {
     const char *s_help =
@@ -464,5 +260,197 @@ static void f_destroy(int pc_algo, void *built_result)
     *(typeof(built_result) *)built_result = NULL;
 
     return;
+}
+
+int main(int argc, char *argv[])
+{
+    struct timespec starttime, stoptime;
+    uint64_t timediff;
+
+    struct partition pa, pa_grp;
+    struct trace t;
+    void *result = NULL;
+
+    struct platform_config plat_cfg = {
+        .s_rule_file = NULL,
+        .s_trace_file = NULL,
+        .rule_fmt = RULE_FMT_INV,
+        .pc_algo = PC_ALGO_INV,
+        .grp_algo = GRP_ALGO_INV
+    };
+
+    f_parse_args(&plat_cfg, argc, argv);
+
+    /*
+     * Loading classifier
+     */
+	if (plat_cfg.rule_fmt == RULE_FMT_WUSTL) {
+		pa.subsets = calloc(1, sizeof(*pa.subsets));
+		if (!pa.subsets) {
+			perror("Cannot allocate memory for subsets");
+			exit(-1);
+		}
+
+		if (load_rules(pa.subsets, plat_cfg.s_rule_file)) {
+			exit(-1);
+		}
+
+		pa.subset_num = 1;
+		pa.rule_num = pa.subsets[0].rule_num;
+
+		// grouping 
+		printf("Grouping ... \n");
+		fflush(NULL);
+
+		if (pa.rule_num > 2) {
+			// call rf_group();
+			if (f_group(GRP_ALGO_RFG, &pa_grp, &pa)) {
+				printf("Error Grouping ... \n");
+				exit(-1);
+			}
+
+			unload_partition(&pa);
+
+			pa.subset_num = pa_grp.subset_num;
+			pa.rule_num = pa_grp.rule_num;
+			pa.subsets = pa_grp.subsets;
+
+			pa_grp.subset_num = 0;
+			pa_grp.rule_num = 0;
+			pa_grp.subsets = NULL;
+			unload_partition(&pa_grp);
+
+			printf("subset_num=%d, rule=%d \n", pa.subset_num, pa.rule_num);
+			fflush(NULL);
+		}
+
+#if 0
+		printf("Saving  ... \n");
+		fflush(NULL);
+		dump_partition(GRP_FILE, &pa_grp);
+
+		printf("Loading ... \n");
+		fflush(NULL);
+
+		if (load_partition(&pa, GRP_FILE)) {
+			exit(-1);
+		}
+
+		printf("pa: subset_num=%d, rule=%d \n", 
+			   pa.subset_num, pa.rule_num);
+		fflush(NULL);
+#endif
+
+	} else if (plat_cfg.rule_fmt == RULE_FMT_WUSTL_G) {
+        if (load_partition(&pa, plat_cfg.s_rule_file)) {
+            exit(-1);
+        }
+
+        if (plat_cfg.grp_algo != GRP_ALGO_INV) {
+			printf("Reverting ... \n");
+			fflush(NULL);
+
+            struct rule_set *p_rs = calloc(1, sizeof(*p_rs));
+            if (!p_rs) {
+                perror("Cannot allocate memory for subsets");
+                exit(-1);
+            }
+
+            if (revert_partition(p_rs, &pa)) {
+                exit(-1);
+            }
+
+            unload_partition(&pa);
+
+            pa.subsets = p_rs;
+            pa.subset_num = 1;
+            pa.rule_num = pa.subsets[0].rule_num;
+        }
+    }
+
+    /*
+     * Grouping
+     */
+	if (plat_cfg.grp_algo != GRP_ALGO_INV) {
+		fprintf(stderr, "Grouping\n");
+
+		clock_gettime(CLOCK_MONOTONIC, &starttime);
+
+		assert(pa.subset_num == 1);
+		// call rf_group();
+		if (f_group(plat_cfg.grp_algo, &pa_grp, &pa)) {
+			fprintf(stderr, "Grouping fail\n");
+			exit(-1);
+		}
+
+		clock_gettime(CLOCK_MONOTONIC, &stoptime);
+
+		fprintf(stderr, "Grouping pass\n");
+		fprintf(stderr, "Time for grouping: %"PRIu64"(us)\n",
+				f_make_timediff(stoptime, starttime));
+
+		dump_partition(GRP_FILE, &pa_grp);
+
+		unload_partition(&pa_grp);
+		unload_partition(&pa);
+
+		return 0;
+	}
+
+    /*
+     * Building
+     */
+    fprintf(stderr, "Building\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &starttime);
+
+    //call hs_build()
+    if (f_build(plat_cfg.pc_algo, &result, &pa)) {
+    //if (f_build(plat_cfg.pc_algo, &result, &pa_grp)) {
+        fprintf(stderr, "Building fail\n");
+        exit(-1);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &stoptime);
+
+    fprintf(stderr, "Building pass\n");
+    fprintf(stderr, "Time for building: %"PRIu64"(us)\n",
+            f_make_timediff(stoptime, starttime));
+
+    unload_partition(&pa);
+
+    if (!plat_cfg.s_trace_file) {
+        f_destroy(plat_cfg.pc_algo, &result);
+        return 0;
+
+    } else if (load_trace(&t, plat_cfg.s_trace_file)) {
+        exit(-1);
+    }
+
+    /*
+     * Searching
+     */
+    fprintf(stderr, "Searching\n");
+
+    clock_gettime(CLOCK_MONOTONIC, &starttime);
+
+    // hs_search()
+    if (f_search(plat_cfg.pc_algo, &t, &result)) {
+        fprintf(stderr, "Searching fail\n");
+        //exit(-1);
+    }
+
+    clock_gettime(CLOCK_MONOTONIC, &stoptime);
+    timediff = f_make_timediff(stoptime, starttime);
+
+    fprintf(stderr, "Searching pass\n");
+    fprintf(stderr, "Time for searching: %"PRIu64"(us)\n", timediff);
+    fprintf(stderr, "Searching speed: %lld(pps)\n",
+            (t.pkt_num * 1000000ULL) / timediff);
+
+    unload_trace(&t);
+    f_destroy(plat_cfg.pc_algo, &result);
+
+    return 0;
 }
 

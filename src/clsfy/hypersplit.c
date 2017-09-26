@@ -172,7 +172,7 @@ int hs_search(const struct trace *p_t, const void *built_result)
         if (pri != p_t->pkts[i].match_rule) {
             fprintf(stderr, "packet %d match %d, but should match %d\n",
                     i, pri, p_t->pkts[i].match_rule);
-            return -EFAULT;
+            //return -EFAULT;
         }
     }
 
@@ -416,8 +416,8 @@ static int f_hs_dim_decision(struct hs_runtime *p_hs_rt,
     /* float measure, measure_min = FLT_MAX; */
     long measure, measure_min = LONG_MAX;
 
-	printf("p_wqe=%p, ruleid=%d, rule_num=%d \n", 
-		   p_wqe, p_wqe->rule_id, p_wqe->rule_num);
+	//printf("p_wqe=%p, ruleid=%d, rule_num=%d \n", 
+	//	   p_wqe, p_wqe->rule_id, p_wqe->rule_num);
 
    	//assert(p_wqe && p_wqe->rule_id && p_wqe->rule_num > 1);
 	if (p_wqe->rule_num < 2) {
@@ -448,7 +448,6 @@ static int f_hs_dim_decision(struct hs_runtime *p_hs_rt,
         }
     }
 
-	printf("dim=%d \n", dim);
     return dim;
 }
 
