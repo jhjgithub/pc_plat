@@ -28,262 +28,266 @@
 
 
 enum {
-    RULE_FMT_INV = -1,
-    RULE_FMT_WUSTL = 0,
-    RULE_FMT_WUSTL_G = 1,
-    RULE_FMT_MAX = 2
+	RULE_FMT_INV		= -1,
+	RULE_FMT_WUSTL		= 0,
+	RULE_FMT_WUSTL_G	= 1,
+	RULE_FMT_MAX		= 2
 };
 
 enum {
-    PC_ALGO_INV = -1,
-    PC_ALGO_HYPERSPLIT = 0,
-    PC_ALGO_MAX = 1
+	PC_ALGO_INV			= -1,
+	PC_ALGO_HYPERSPLIT	= 0,
+	PC_ALGO_MAX			= 1
 };
 
 enum {
-    GRP_ALGO_INV = -1,
-    GRP_ALGO_RFG = 0,
-    GRP_ALGO_MAX = 1
+	GRP_ALGO_INV	= -1,
+	GRP_ALGO_RFG	= 0,
+	GRP_ALGO_MAX	= 1
 };
 
 
 struct platform_config {
-    char *s_rule_file;
-    char *s_trace_file;
-    int rule_fmt;
-    int pc_algo;
-    int grp_algo;
+	char	*s_rule_file;
+	char	*s_trace_file;
+	int		rule_fmt;
+	int		pc_algo;
+	int		grp_algo;
 };
 
 
 static void f_print_help(void)
 {
-    const char *s_help =
-        "NSLab Packet Classification Platform\n"
-        "\n"
-        "Valid options:\n"
-        "  -r, --rule FILE  specify a rule file for building\n"
-        "  -f, --format FORMAT  specify a rule file format: [wustl, wustl_g]\n"
-        "  -t, --trace FILE  specify a trace file for searching\n"
-        "\n"
-        "  -p, --pc ALGO  specify a pc algorithm: [hs]\n"
-        "  -g, --grp ALGO  specify a grp algorithm: [rfg]\n"
-        "\n"
-        "  -h, --help  display this help and exit\n"
-        "\n";
+	const char *s_help =
+		"NSLab Packet Classification Platform\n"
+		"\n"
+		"Valid options:\n"
+		"  -r, --rule FILE  specify a rule file for building\n"
+		"  -f, --format FORMAT  specify a rule file format: [wustl, wustl_g]\n"
+		"  -t, --trace FILE  specify a trace file for searching\n"
+		"\n"
+		"  -p, --pc ALGO  specify a pc algorithm: [hs]\n"
+		"  -g, --grp ALGO  specify a grp algorithm: [rfg]\n"
+		"\n"
+		"  -h, --help  display this help and exit\n"
+		"\n";
 
-    fprintf(stdout, "%s", s_help);
+	fprintf(stdout, "%s", s_help);
 
-    return;
+	return;
 }
 
 static void f_parse_args(struct platform_config *p_plat_cfg,
-        int argc, char *argv[])
+						 int argc, char *argv[])
 {
-    int option;
-    const char *s_opts = "r:f:t:p:g:h";
-    const struct option opts[] = {
-        {"rule", required_argument, NULL, 'r'},
-        {"format", required_argument, NULL, 'f'},
-        {"trace", required_argument, NULL, 't'},
-        {"pc", required_argument, NULL, 'p'},
-        {"grp", required_argument, NULL, 'g'},
-        {"help", no_argument, NULL, 'h'},
-        {NULL, 0, NULL, 0}
-    };
+	int option;
+	const char *s_opts = "r:f:t:p:g:h";
+	const struct option opts[] = {
+		{ "rule",	required_argument, NULL, 'r' },
+		{ "format", required_argument, NULL, 'f' },
+		{ "trace",	required_argument, NULL, 't' },
+		{ "pc",		required_argument, NULL, 'p' },
+		{ "grp",	required_argument, NULL, 'g' },
+		{ "help",	no_argument,	   NULL, 'h' },
+		{ NULL,		0,				   NULL, 0	 }
+	};
 
-    assert(p_plat_cfg && argv);
+	assert(p_plat_cfg && argv);
 
-    if (argc < 2) {
-        f_print_help();
-        exit(-1);
-    }
+	if (argc < 2) {
+		f_print_help();
+		exit(-1);
+	}
 
-    while ((option = getopt_long(argc, argv, s_opts, opts, NULL)) != -1) {
-        switch (option) {
-        case 'r':
-        case 't':
-            if (access(optarg, F_OK) == -1) {
-                perror(optarg);
-                exit(-1);
-            }
+	while ((option = getopt_long(argc, argv, s_opts, opts, NULL)) != -1) {
+		switch (option) {
+		case 'r':
+		case 't':
+			if (access(optarg, F_OK) == -1) {
+				perror(optarg);
+				exit(-1);
+			}
 
-            if (option == 'r') {
-                p_plat_cfg->s_rule_file = optarg;
+			if (option == 'r') {
+				p_plat_cfg->s_rule_file = optarg;
+			}
+			else if (option == 't') {
+				p_plat_cfg->s_trace_file = optarg;
+			}
 
-            } else if (option == 't') {
-                p_plat_cfg->s_trace_file = optarg;
-            }
+			break;
 
-            break;
+		case 'f':
+			if (!strcmp(optarg, "wustl")) {
+				p_plat_cfg->rule_fmt = RULE_FMT_WUSTL;
+			}
+			else if (!strcmp(optarg, "wustl_g")) {
+				p_plat_cfg->rule_fmt = RULE_FMT_WUSTL_G;
+			}
 
-        case 'f':
-            if (!strcmp(optarg, "wustl")) {
-                p_plat_cfg->rule_fmt = RULE_FMT_WUSTL;
+			break;
 
-            } else if (!strcmp(optarg, "wustl_g")) {
-                p_plat_cfg->rule_fmt = RULE_FMT_WUSTL_G;
-            }
+		case 'p':
+			if (!strcmp(optarg, "hs")) {
+				p_plat_cfg->pc_algo = PC_ALGO_HYPERSPLIT;
+			}
 
-            break;
+			break;
 
-        case 'p':
-            if (!strcmp(optarg, "hs")) {
-                p_plat_cfg->pc_algo = PC_ALGO_HYPERSPLIT;
-            }
+		case 'g':
+			if (!strcmp(optarg, "rfg")) {
+				p_plat_cfg->grp_algo = GRP_ALGO_RFG;
+			}
 
-            break;
+			break;
 
-        case 'g':
-            if (!strcmp(optarg, "rfg")) {
-                p_plat_cfg->grp_algo = GRP_ALGO_RFG;
-            }
+		case 'h':
+			f_print_help();
+			exit(0);
 
-            break;
+		default:
+			f_print_help();
+			exit(-1);
+		}
+	}
 
-        case 'h':
-            f_print_help();
-            exit(0);
+	if (!p_plat_cfg->s_rule_file) {
+		fprintf(stderr, "Not specify the rule file\n");
+		exit(-1);
+	}
 
-        default:
-            f_print_help();
-            exit(-1);
-        }
-    }
+	if (p_plat_cfg->rule_fmt == RULE_FMT_INV) {
+		fprintf(stderr, "Not specify the rule format\n");
+		exit(-1);
+	}
 
-    if (!p_plat_cfg->s_rule_file) {
-        fprintf(stderr, "Not specify the rule file\n");
-        exit(-1);
-    }
+	if (p_plat_cfg->pc_algo != PC_ALGO_INV &&
+		p_plat_cfg->grp_algo != GRP_ALGO_INV) {
+		fprintf(stderr, "Cannot run in hybrid mode [pc & grp]\n");
+		exit(-1);
+	}
+	else if (p_plat_cfg->pc_algo != PC_ALGO_INV) {
+		fprintf(stderr, "Run in pc mode\n");
+	}
+	else if (p_plat_cfg->grp_algo != GRP_ALGO_INV) {
+		fprintf(stderr, "Run in grp mode\n");
+	}
+	else {
+		fprintf(stderr, "Not specify the pc or grp algorithm\n");
+		exit(-1);
+	}
 
-    if (p_plat_cfg->rule_fmt == RULE_FMT_INV) {
-        fprintf(stderr, "Not specify the rule format\n");
-        exit(-1);
-    }
-
-    if (p_plat_cfg->pc_algo != PC_ALGO_INV &&
-        p_plat_cfg->grp_algo != GRP_ALGO_INV) {
-        fprintf(stderr, "Cannot run in hybrid mode [pc & grp]\n");
-        exit(-1);
-
-    } else if (p_plat_cfg->pc_algo != PC_ALGO_INV) {
-        fprintf(stderr, "Run in pc mode\n");
-
-    } else if (p_plat_cfg->grp_algo != GRP_ALGO_INV) {
-        fprintf(stderr, "Run in grp mode\n");
-
-    } else {
-        fprintf(stderr, "Not specify the pc or grp algorithm\n");
-        exit(-1);
-    }
-
-    return;
+	return;
 }
 
-static uint64_t f_make_timediff(const struct timespec stop,
-        const struct timespec start)
+static uint64_t f_make_timediff(const struct timespec	stop,
+								const struct timespec	start)
 {
-    return (stop.tv_sec * 1000000ULL + stop.tv_nsec / 1000)
-        - (start.tv_sec * 1000000ULL + start.tv_nsec / 1000);
+	return (stop.tv_sec * 1000000ULL + stop.tv_nsec / 1000)
+		   - (start.tv_sec * 1000000ULL + start.tv_nsec / 1000);
 }
 
+#if 0
 static int f_build(int pc_algo, void *built_result,
-        const struct partition *p_pa)
+				   const struct partition *p_pa)
 {
-    assert(pc_algo > PC_ALGO_INV && pc_algo < PC_ALGO_MAX);
-    assert(built_result && p_pa && p_pa->subsets && p_pa->rule_num > 1);
-    assert(p_pa->subset_num > 0 && p_pa->subset_num <= PART_MAX);
+	assert(pc_algo > PC_ALGO_INV && pc_algo < PC_ALGO_MAX);
+	assert(built_result && p_pa && p_pa->subsets && p_pa->rule_num > 1);
+	assert(p_pa->subset_num > 0 && p_pa->subset_num <= PART_MAX);
 
-    switch (pc_algo) {
-    case PC_ALGO_HYPERSPLIT:
-        return hs_build(built_result, p_pa);
+	switch (pc_algo) {
+	case PC_ALGO_HYPERSPLIT:
+		return hs_build(built_result, p_pa);
 
-    default:
-        *(typeof(built_result) *)built_result = NULL;
-        return -ENOTSUP;
-    }
+	default:
+		*(typeof(built_result) *)built_result = NULL;
+		return -ENOTSUP;
+	}
 }
 
 static int f_group(int grp_algo, struct partition *p_pa_grp,
-        const struct partition *p_pa)
+				   const struct partition *p_pa)
 {
-    assert(grp_algo > GRP_ALGO_INV && grp_algo < GRP_ALGO_MAX);
-    assert(p_pa_grp && p_pa && p_pa->subsets && p_pa->rule_num > 1);
-    assert(p_pa->subset_num > 0 && p_pa->subset_num <= PART_MAX);
+	assert(grp_algo > GRP_ALGO_INV && grp_algo < GRP_ALGO_MAX);
+	assert(p_pa_grp && p_pa && p_pa->subsets && p_pa->rule_num > 1);
+	assert(p_pa->subset_num > 0 && p_pa->subset_num <= PART_MAX);
 
-    switch (grp_algo) {
-    case GRP_ALGO_RFG:
-        return rf_group(p_pa_grp, p_pa);
+	switch (grp_algo) {
+	case GRP_ALGO_RFG:
+		return rf_group(p_pa_grp, p_pa);
 
-    default:
-        return -ENOTSUP;
-    }
+	default:
+		return -ENOTSUP;
+	}
 }
 
 static int f_search(int pc_algo, const struct trace *p_t,
-        const void *built_result)
+					const void *built_result)
 {
-    assert(pc_algo > PC_ALGO_INV && pc_algo < PC_ALGO_MAX);
-    assert(p_t && p_t->pkts && built_result);
+	assert(pc_algo > PC_ALGO_INV && pc_algo < PC_ALGO_MAX);
+	assert(p_t && p_t->pkts && built_result);
 
-    if (*(typeof(built_result) *)built_result == NULL) {
-        return -EINVAL;
-    }
+	if (*(typeof(built_result) *)built_result == NULL) {
+		return -EINVAL;
+	}
 
-    switch (pc_algo) {
-    case PC_ALGO_HYPERSPLIT:
-        return hs_search(p_t, built_result);
+	switch (pc_algo) {
+	case PC_ALGO_HYPERSPLIT:
+		return hs_search(p_t, built_result);
 
-    default:
-        return -ENOTSUP;
-    }
+	default:
+		return -ENOTSUP;
+	}
 }
 
 static void f_destroy(int pc_algo, void *built_result)
 {
-    assert(pc_algo > PC_ALGO_INV && pc_algo < PC_ALGO_MAX);
-    assert(built_result);
+	assert(pc_algo > PC_ALGO_INV && pc_algo < PC_ALGO_MAX);
+	assert(built_result);
 
-    if (*(typeof(built_result) *)built_result == NULL) {
-        return;
-    }
+	if (*(typeof(built_result) *)built_result == NULL) {
+		return;
+	}
 
-    switch (pc_algo) {
-    case PC_ALGO_HYPERSPLIT:
-        hs_destroy(built_result);
-        break;
+	switch (pc_algo) {
+	case PC_ALGO_HYPERSPLIT:
+		hs_destroy(built_result);
+		break;
 
-    default:
-        break;
-    }
+	default:
+		break;
+	}
 
-    *(typeof(built_result) *)built_result = NULL;
+	*(typeof(built_result) *)built_result = NULL;
 
-    return;
+	return;
 }
+
+#endif
+
 
 int main(int argc, char *argv[])
 {
-    struct timespec starttime, stoptime;
-    uint64_t timediff;
+	struct timespec starttime, stoptime;
+	uint64_t timediff;
 
-    struct partition pa, pa_grp;
-    struct trace t;
-    void *result = NULL;
+	struct partition pa, pa_grp;
+	struct trace t;
+	void *result = NULL;
 
-    struct platform_config plat_cfg = {
-        .s_rule_file = NULL,
-        .s_trace_file = NULL,
-        .rule_fmt = RULE_FMT_INV,
-        .pc_algo = PC_ALGO_INV,
-        .grp_algo = GRP_ALGO_INV
-    };
+	struct platform_config plat_cfg = {
+		.s_rule_file	= NULL,
+		.s_trace_file	= NULL,
+		.rule_fmt		= RULE_FMT_INV,
+		.pc_algo		= PC_ALGO_INV,
+		.grp_algo		= GRP_ALGO_INV
+	};
 
-    f_parse_args(&plat_cfg, argc, argv);
+	f_parse_args(&plat_cfg, argc, argv);
 
-    /*
-     * Loading classifier
-     */
+	/*
+	 * Loading classifier
+	 */
 	if (plat_cfg.rule_fmt == RULE_FMT_WUSTL) {
 		pa.subsets = calloc(1, sizeof(*pa.subsets));
 		if (!pa.subsets) {
@@ -298,13 +302,12 @@ int main(int argc, char *argv[])
 		pa.subset_num = 1;
 		pa.rule_num = pa.subsets[0].rule_num;
 
-		// grouping 
+		// grouping
 		printf("Grouping ... \n");
 		fflush(NULL);
 
 		if (pa.rule_num > 2) {
-			// call rf_group();
-			if (f_group(GRP_ALGO_RFG, &pa_grp, &pa)) {
+			if (rf_group(&pa_grp, &pa)) {
 				printf("Error Grouping ... \n");
 				exit(-1);
 			}
@@ -336,49 +339,50 @@ int main(int argc, char *argv[])
 			exit(-1);
 		}
 
-		printf("pa: subset_num=%d, rule=%d \n", 
+		printf("pa: subset_num=%d, rule=%d \n",
 			   pa.subset_num, pa.rule_num);
+
 		fflush(NULL);
 #endif
+	}
+	else if (plat_cfg.rule_fmt == RULE_FMT_WUSTL_G) {
+		if (load_partition(&pa, plat_cfg.s_rule_file)) {
+			exit(-1);
+		}
 
-	} else if (plat_cfg.rule_fmt == RULE_FMT_WUSTL_G) {
-        if (load_partition(&pa, plat_cfg.s_rule_file)) {
-            exit(-1);
-        }
-
-        if (plat_cfg.grp_algo != GRP_ALGO_INV) {
+		if (plat_cfg.grp_algo != GRP_ALGO_INV) {
 			printf("Reverting ... \n");
 			fflush(NULL);
 
-            struct rule_set *p_rs = calloc(1, sizeof(*p_rs));
-            if (!p_rs) {
-                perror("Cannot allocate memory for subsets");
-                exit(-1);
-            }
+			struct rule_set *p_rs = calloc(1, sizeof(*p_rs));
+			if (!p_rs) {
+				perror("Cannot allocate memory for subsets");
+				exit(-1);
+			}
 
-            if (revert_partition(p_rs, &pa)) {
-                exit(-1);
-            }
+			if (revert_partition(p_rs, &pa)) {
+				exit(-1);
+			}
 
-            unload_partition(&pa);
+			unload_partition(&pa);
 
-            pa.subsets = p_rs;
-            pa.subset_num = 1;
-            pa.rule_num = pa.subsets[0].rule_num;
-        }
-    }
+			pa.subsets = p_rs;
+			pa.subset_num = 1;
+			pa.rule_num = pa.subsets[0].rule_num;
+		}
+	}
 
-    /*
-     * Grouping
-     */
+	/*
+	 * Grouping
+	 */
 	if (plat_cfg.grp_algo != GRP_ALGO_INV) {
 		fprintf(stderr, "Grouping\n");
 
 		clock_gettime(CLOCK_MONOTONIC, &starttime);
 
 		assert(pa.subset_num == 1);
-		// call rf_group();
-		if (f_group(plat_cfg.grp_algo, &pa_grp, &pa)) {
+
+		if (rf_group(&pa_grp, &pa)) {
 			fprintf(stderr, "Grouping fail\n");
 			exit(-1);
 		}
@@ -386,7 +390,7 @@ int main(int argc, char *argv[])
 		clock_gettime(CLOCK_MONOTONIC, &stoptime);
 
 		fprintf(stderr, "Grouping pass\n");
-		fprintf(stderr, "Time for grouping: %"PRIu64"(us)\n",
+		fprintf(stderr, "Time for grouping: %" PRIu64 "(us)\n",
 				f_make_timediff(stoptime, starttime));
 
 		dump_partition(GRP_FILE, &pa_grp);
@@ -397,60 +401,67 @@ int main(int argc, char *argv[])
 		return 0;
 	}
 
-    /*
-     * Building
-     */
-    fprintf(stderr, "Building\n");
+	/*
+	 * Building
+	 */
+	fprintf(stderr, "Building\n");
 
-    clock_gettime(CLOCK_MONOTONIC, &starttime);
+	clock_gettime(CLOCK_MONOTONIC, &starttime);
 
-    //call hs_build()
-    if (f_build(plat_cfg.pc_algo, &result, &pa)) {
-    //if (f_build(plat_cfg.pc_algo, &result, &pa_grp)) {
-        fprintf(stderr, "Building fail\n");
-        exit(-1);
-    }
+	//call hs_build()
+	if (hs_build(&result, &pa)) {
+		fprintf(stderr, "Building fail\n");
+		exit(-1);
+	}
 
-    clock_gettime(CLOCK_MONOTONIC, &stoptime);
+	clock_gettime(CLOCK_MONOTONIC, &stoptime);
 
-    fprintf(stderr, "Building pass\n");
-    fprintf(stderr, "Time for building: %"PRIu64"(us)\n",
-            f_make_timediff(stoptime, starttime));
+	fprintf(stderr, "Building pass\n");
+	fprintf(stderr, "Time for building: %" PRIu64 "(us)\n",
+			f_make_timediff(stoptime, starttime));
 
-    unload_partition(&pa);
+	unload_partition(&pa);
 
-    if (!plat_cfg.s_trace_file) {
-        f_destroy(plat_cfg.pc_algo, &result);
-        return 0;
+	if (!plat_cfg.s_trace_file) {
+		hs_destroy(&result);
+		return 0;
+	}
+	else if (load_trace(&t, plat_cfg.s_trace_file)) {
+		exit(-1);
+	}
 
-    } else if (load_trace(&t, plat_cfg.s_trace_file)) {
-        exit(-1);
-    }
+	/*
+	 * Searching
+	 */
+	fprintf(stderr, "Searching\n");
 
-    /*
-     * Searching
-     */
-    fprintf(stderr, "Searching\n");
+	clock_gettime(CLOCK_MONOTONIC, &starttime);
 
-    clock_gettime(CLOCK_MONOTONIC, &starttime);
+	if (hs_search(&t, &result)) {
+		//fprintf(stderr, "Searching fail\n");
+		//exit(-1);
+	}
 
-    // hs_search()
-    if (f_search(plat_cfg.pc_algo, &t, &result)) {
-        fprintf(stderr, "Searching fail\n");
-        //exit(-1);
-    }
+	clock_gettime(CLOCK_MONOTONIC, &stoptime);
+	timediff = f_make_timediff(stoptime, starttime);
 
-    clock_gettime(CLOCK_MONOTONIC, &stoptime);
-    timediff = f_make_timediff(stoptime, starttime);
+	int i;
+	for (i = 0; i < t.pkt_num; i++) {
 
-    fprintf(stderr, "Searching pass\n");
-    fprintf(stderr, "Time for searching: %"PRIu64"(us)\n", timediff);
-    fprintf(stderr, "Searching speed: %lld(pps)\n",
-            (t.pkt_num * 1000000ULL) / timediff);
+		if (t.pkts[i].found != t.pkts[i].match_rule) {
+			fprintf(stderr, "packet %d match %d, but should match %d\n",
+					i, t.pkts[i].found, t.pkts[i].match_rule);
+		}
+	}
 
-    unload_trace(&t);
-    f_destroy(plat_cfg.pc_algo, &result);
+	fprintf(stderr, "Searching pass\n");
+	fprintf(stderr, "Time for searching: %" PRIu64 "(us)\n", timediff);
+	fprintf(stderr, "Searching speed: %lld(pps)\n",
+			(t.pkt_num * 1000000ULL) / timediff);
 
-    return 0;
+	unload_trace(&t);
+
+	hs_destroy(&result);
+
+	return 0;
 }
-

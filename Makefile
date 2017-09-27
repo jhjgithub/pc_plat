@@ -15,12 +15,16 @@ BIN_DIR = bin
 
 #rwildcard = $(foreach d, $(wildcard $1*), $(call rwildcard, $d/, $2) $(filter $(subst *, %, $2), $d))
 
-rwildcard=src/clsfy/hypersplit.c 
-rwildcard+=src/common/point_range.c src/common/utils.c src/common/mpool.c 
-rwildcard+=src/common/rule_trace.c src/common/impl.c src/common/sort.c
-rwildcard+=src/group/rfg.c src/pc_plat.c
+SRC=src/clsfy/hypersplit.c 
+SRC+=src/common/point_range.c src/common/utils.c src/common/mpool.c 
+SRC+=src/common/rule_trace.c src/common/impl.c src/common/sort.c
+SRC+=src/group/rfg.c src/pc_plat.c
 
-SRC = $(call rwildcard, $(SRC_DIR)/, *.c)
+HEADERS=./inc/common/impl.h ./inc/common/rule_trace.h ./inc/common/mpool.h
+HEADERS+=./inc/common/point_range.h ./inc/common/utils.h ./inc/common/buffer.h
+HEADERS+=./inc/common/sort.h ./inc/group/rfg.h ./inc/clsfy/hypersplit.h
+
+#SRC = $(call rwildcard, $(SRC_DIR)/, *.c)
 DEP = $(patsubst $(SRC_DIR)/%.c, $(BIN_DIR)/%.d, $(SRC))
 OBJ = $(patsubst $(SRC_DIR)/%.c, $(BIN_DIR)/%.o, $(SRC))
 BIN = $(BIN_DIR)/pc_plat
@@ -53,6 +57,9 @@ $(BIN): $(OBJ)
 clean:
 	rm -rf $(BIN_DIR);
 
+tag:
+	ctags -R
+
 run_grp:
 	./bin/pc_plat -g rfg -f wustl -r rule_trace/rules/origin/fw1_10K
 
@@ -64,3 +71,5 @@ run_pc:
 	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw2 -t rule_trace/traces/origin/fw2_trace
 #	gdb -ex=r --args ./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw2 -t rule_trace/traces/origin/fw2_trace
 
+format: $(SRC) $(HEADERS)
+	 uncrustify --no-backup --mtime -c ./formatter.cfg $^

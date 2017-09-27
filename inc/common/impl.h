@@ -39,4 +39,3 @@ ISORT_PROTOTYPE(extern, rng_rid, struct rfg_rng_rid)
 QSORT_PROTOTYPE(extern, rng_rid, struct rfg_rng_rid)
 
 BSEARCH_PROTOTYPE(extern, rng_idx, struct rfg_rng_idx)
-

@@ -17,17 +17,16 @@
 
 
 struct rfg_rng_rid {
-    uint64_t value; /* (range_len << 32 | range_begin) */
-    int rule_id;
+	uint64_t	value; /* (range_len << 32 | range_begin) */
+	int			rule_id;
 };
 
 struct rfg_rng_idx {
-    uint32_t range[2];
-    uint32_t index[2];
+	uint32_t	range[2];
+	uint32_t	index[2];
 };
 
 
-int rf_group(struct partition *p_pa_grp, const struct partition *p_pa_orig);
+int rf_group(struct partition *part, const struct partition *part_org);
 
 #endif /* __RFG_H__ */
-

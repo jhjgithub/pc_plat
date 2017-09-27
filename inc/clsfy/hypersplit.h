@@ -24,33 +24,32 @@
 
 
 struct hs_node {
-    uint64_t thresh;
-    uint32_t dim    : 32 - NODE_NUM_BITS;
-    uint32_t lchild : NODE_NUM_BITS;
-    uint32_t pack   : 32 - NODE_NUM_BITS;
-    uint32_t rchild : NODE_NUM_BITS;
+	uint64_t	thresh;
+	uint32_t	dim    : 32 - NODE_NUM_BITS;
+	uint32_t	lchild : NODE_NUM_BITS;
+	uint32_t	pack   : 32 - NODE_NUM_BITS;
+	uint32_t	rchild : NODE_NUM_BITS;
 };
 
 struct hs_tree {
-    struct hs_node *p_root;
-    int inode_num;
-    int enode_num;
-    int depth_max;
-    //double depth_avg;
+	struct hs_node	*root_node;
+	int				inode_num;
+	int				enode_num;
+	int				depth_max;
+	//double depth_avg;
 };
 
 struct hs_result {
-    struct hs_tree *trees;
-    int tree_num;
-    int def_rule;
+	struct hs_tree	*trees;
+	int				tree_num;
+	int				def_rule;
 };
 
 MPOOL(hsn_pool, struct hs_node);
 
 
-int hs_build(void *built_result, const struct partition *p_pa);
-int hs_search(const struct trace *p_t, const void *built_result);
+int hs_build(void *built_result, const struct partition *part);
+int hs_search(const struct trace *trace, const void *built_result);
 void hs_destroy(void *built_result);
 
 #endif /* __HYPERSPLIT_H__ */
-
