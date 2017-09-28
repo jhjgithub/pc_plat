@@ -13,7 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
-#include <assert.h>
+//#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <sys/queue.h>
@@ -47,20 +47,18 @@ struct rfg_runtime {
 
 ////////////////////////////////////////////////
 
-static int f_rfg_init(struct rfg_runtime *rfgrt, const struct rule_set *rulesets);
-static void f_rfg_term(struct rfg_runtime *rfgrt);
-
-static int f_rfg_trigger(struct rfg_runtime *rfgrt);
-static int f_rfg_process(struct rfg_runtime *rfgrt);
-static int f_rfg_gather(struct rfg_runtime *rfgrt);
-
-static int f_rfg_spawn(int dim, int rej_rng_num, int ack_rng_num, struct rfg_runtime *rfgrt, const struct rfg_queue_entry *ent);
-static uint64_t f_rfg_gen_minrng(int *p_rej_rng_num, int *p_ack_rng_num, struct rfg_rng_idx *rej, struct rfg_rng_idx *ack, const struct rfg_rng_rid *raw, int num);
-static int f_rfg_chk_overlap(const struct rfg_rng_idx *p_key, const struct rfg_rng_idx *ack, int ack_rng_num, int bchk_num);
+static int rfg_init(struct rfg_runtime *rfgrt, const struct rule_set *rulesets);
+static void rfg_terminate(struct rfg_runtime *rfgrt);
+static int rfg_trigger(struct rfg_runtime *rfgrt);
+static int rfg_process(struct rfg_runtime *rfgrt);
+static int rfg_gather(struct rfg_runtime *rfgrt);
+static int rfg_spawn(int dim, int rej_rng_num, int ack_rng_num, struct rfg_runtime *rfgrt, const struct rfg_queue_entry *ent);
+static uint64_t rfg_gen_min_range(int *p_rej_rng_num, int *p_ack_rng_num, struct rfg_rng_idx *rej, struct rfg_rng_idx *ack, const struct rfg_rng_rid *raw, int num);
+static int rfg_check_overlap(const struct rfg_rng_idx *p_key, const struct rfg_rng_idx *ack, int ack_rng_num, int bchk_num);
 
 ////////////////////////////////////////////////
 
-static int f_rfg_init(struct rfg_runtime *rfgrt, const struct rule_set *rulesets)
+static int rfg_init(struct rfg_runtime *rfgrt, const struct rule_set *rulesets)
 {
 	struct rule_set *subsets;
 	int i, null_flag = 0, rule_num = rulesets->rule_num - 1;
@@ -115,14 +113,14 @@ static int f_rfg_init(struct rfg_runtime *rfgrt, const struct rule_set *rulesets
 	return 0;
 }
 
-static void f_rfg_term(struct rfg_runtime *rfgrt)
+static void rfg_terminate(struct rfg_runtime *rfgrt)
 {
 	int i;
-	struct rfg_queue_head *p_wqh = &rfgrt->wqh;
+	struct rfg_queue_head *qh = &rfgrt->wqh;
 
-	while (!STAILQ_EMPTY(p_wqh)) {
-		struct rfg_queue_entry *ent = STAILQ_FIRST(p_wqh);
-		STAILQ_REMOVE_HEAD(p_wqh, e);
+	while (!STAILQ_EMPTY(qh)) {
+		struct rfg_queue_entry *ent = STAILQ_FIRST(qh);
+		STAILQ_REMOVE_HEAD(qh, e);
 		free(ent->rule_id);
 		free(ent);
 	}
@@ -142,12 +140,21 @@ static void f_rfg_term(struct rfg_runtime *rfgrt)
 	return;
 }
 
-static int f_rfg_trigger(struct rfg_runtime *rfgrt)
+static int rfg_trigger(struct rfg_runtime *rfgrt)
 {
 	int cur, rule_num;
 
-	assert(rfgrt && rfgrt->rulesets);
-	assert(rfgrt->rulesets->rules && rfgrt->rulesets->rule_num > 1);
+	//assert(rfgrt && rfgrt->rulesets);
+	//assert(rfgrt->rulesets->rules && rfgrt->rulesets->rule_num > 1);
+
+	if (rfgrt == NULL || rfgrt->rulesets == NULL) {
+		return -EINVAL;
+	}
+
+	if (rfgrt->rulesets->rules == NULL ||
+		rfgrt->rulesets->rule_num <= 1) {
+		return -EINVAL;
+	}
 
 	/* After increment, the cur points to the last rejected rules */
 	cur = rfgrt->cur & 0x1;
@@ -174,21 +181,26 @@ static int f_rfg_trigger(struct rfg_runtime *rfgrt)
 	return 0;
 }
 
-static int f_rfg_process(struct rfg_runtime *rfgrt)
+static int rfg_process(struct rfg_runtime *rfgrt)
 {
-	struct rfg_queue_head *p_wqh;
+	struct rfg_queue_head *qh;
 	struct rfg_queue_entry *ent;
 	const struct rule *rules = rfgrt->rulesets->rules;
 
 	/* The loop processes subsets that needs de-overlap */
-	p_wqh = &rfgrt->wqh;
-	while (!STAILQ_EMPTY(p_wqh)) {
+	qh = &rfgrt->wqh;
+	while (!STAILQ_EMPTY(qh)) {
 		uint64_t measure_max = 0;
 		int i, dim = DIM_INV, ack_rng_num = -1, rej_rng_num = -1;
 
-		ent = STAILQ_FIRST(p_wqh);
-		STAILQ_REMOVE_HEAD(p_wqh, e);
-		assert(ent->rule_num > 1 && ent->dims != (1 << DIM_MAX) - 1);
+		ent = STAILQ_FIRST(qh);
+		//assert(ent->rule_num > 1 && ent->dims != (1 << DIM_MAX) - 1);
+		
+		if (ent->rule_num <= 1 || ent->dims == ((1 << DIM_MAX) - 1)) {
+			goto err;
+		}
+
+		STAILQ_REMOVE_HEAD(qh, e);
 
 		/* choose split dimension */
 		for (i = 0; i < DIM_MAX; i++) {
@@ -212,7 +224,7 @@ static int f_rfg_process(struct rfg_runtime *rfgrt)
 			QSORT(rng_rid, raw, ent->rule_num);
 
 			/* generate non-overlapping ranges of small sizes */
-			measure = f_rfg_gen_minrng(&j, &k, rfgrt->rejs[i],
+			measure = rfg_gen_min_range(&j, &k, rfgrt->rejs[i],
 									   rfgrt->acks[i], raw, ent->rule_num);
 			if (measure > measure_max) {
 				measure_max = measure;
@@ -223,8 +235,12 @@ static int f_rfg_process(struct rfg_runtime *rfgrt)
 		}
 
 		/* process non-overlapping ranges of split dimension */
-		assert(dim != DIM_INV && ack_rng_num > 0 && rej_rng_num >= 0);
-		if (f_rfg_spawn(dim, rej_rng_num, ack_rng_num, rfgrt, ent)) {
+		//assert(dim != DIM_INV && ack_rng_num > 0 && rej_rng_num >= 0);
+		if (dim == DIM_INV || ack_rng_num < 1 || rej_rng_num < 0) {
+			goto err;
+		}
+
+		if (rfg_spawn(dim, rej_rng_num, ack_rng_num, rfgrt, ent)) {
 			goto err;
 		}
 
@@ -241,7 +257,7 @@ err:
 	return -ENOMEM;
 }
 
-static int f_rfg_gather(struct rfg_runtime *rfgrt)
+static int rfg_gather(struct rfg_runtime *rfgrt)
 {
 	int i;
 	int cur = rfgrt->cur & 0x1;
@@ -271,7 +287,7 @@ static int f_rfg_gather(struct rfg_runtime *rfgrt)
 	return 0;
 }
 
-static int f_rfg_spawn(int dim, int rej_rng_num, int ack_rng_num,
+static int rfg_spawn(int dim, int rej_rng_num, int ack_rng_num,
 					   struct rfg_runtime *rfgrt, const struct rfg_queue_entry *ent)
 {
 	int i, j;
@@ -319,7 +335,7 @@ static int f_rfg_spawn(int dim, int rej_rng_num, int ack_rng_num,
 	return 0;
 }
 
-static uint64_t f_rfg_gen_minrng(int *p_rej_rng_num, int *p_ack_rng_num,
+static uint64_t rfg_gen_min_range(int *p_rej_rng_num, int *p_ack_rng_num,
 								 struct rfg_rng_idx *rej, struct rfg_rng_idx *ack,
 								 const struct rfg_rng_rid *raw, int num)
 {
@@ -367,7 +383,7 @@ static uint64_t f_rfg_gen_minrng(int *p_rej_rng_num, int *p_ack_rng_num,
 
 		/* new range is overlapping */
 		if (rng[0] <= chk_rng[1] && rng[1] >= chk_rng[0] &&
-			f_rfg_chk_overlap(&key, ack, ack_rng_num, bchk_num)) {
+			rfg_check_overlap(&key, ack, ack_rng_num, bchk_num)) {
 			rej[rej_rng_num].range[0] = rng[0];
 			rej[rej_rng_num].range[1] = rng[1];
 			rej[rej_rng_num].index[0] = i;
@@ -406,12 +422,16 @@ static uint64_t f_rfg_gen_minrng(int *p_rej_rng_num, int *p_ack_rng_num,
 	return ((uint64_t)ack_rng_num << 32) | (uint64_t)ack_rule_num;
 }
 
-static int f_rfg_chk_overlap(const struct rfg_rng_idx *p_key,
+static int rfg_check_overlap(const struct rfg_rng_idx *p_key,
 							 const struct rfg_rng_idx *ack, int ack_rng_num, int bchk_num)
 {
 	int i;
 
-	assert(ack && bchk_num <= ack_rng_num);
+	//assert(ack && bchk_num <= ack_rng_num);
+	
+	if (ack == NULL || bchk_num > ack_rng_num) {
+		return 0;
+	}
 
 	if (BSEARCH(rng_idx, p_key, ack, bchk_num) != -1) {
 		return 1;
@@ -440,7 +460,7 @@ int rf_group(struct partition *part, const struct partition *part_org)
 	}
 
 	/* Init */
-	ret = f_rfg_init(&rfg_rt, part_org->subsets);
+	ret = rfg_init(&rfg_rt, part_org->subsets);
 	if (ret) {
 		return ret;
 	}
@@ -449,19 +469,19 @@ int rf_group(struct partition *part, const struct partition *part_org)
 	for (rfg_rt.cur = 0; rfg_rt.rule_nums[rfg_rt.cur & 0x1] &&
 		 rfg_rt.cur < PART_MAX; rfg_rt.cur++) {
 		/* trigger entry enqueue */
-		ret = f_rfg_trigger(&rfg_rt);
+		ret = rfg_trigger(&rfg_rt);
 		if (ret) {
 			goto err;
 		}
 
 		/* replication free grouping */
-		ret = f_rfg_process(&rfg_rt);
+		ret = rfg_process(&rfg_rt);
 		if (ret) {
 			goto err;
 		}
 
 		/* write loop result */
-		ret = f_rfg_gather(&rfg_rt);
+		ret = rfg_gather(&rfg_rt);
 		if (ret) {
 			goto err;
 		}
@@ -486,7 +506,7 @@ int rf_group(struct partition *part, const struct partition *part_org)
 	part->rule_num = part_org->rule_num;
 
 	/* Term */
-	f_rfg_term(&rfg_rt);
+	rfg_terminate(&rfg_rt);
 
 	return 0;
 
@@ -495,7 +515,7 @@ err:
 		unload_rules(&rfg_rt.subsets[rfg_rt.cur]);
 	}
 
-	f_rfg_term(&rfg_rt);
+	rfg_terminate(&rfg_rt);
 
 	return ret;
 }

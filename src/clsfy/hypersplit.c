@@ -15,7 +15,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
+//#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 //#include <float.h>
@@ -144,9 +144,15 @@ static int hs_trigger(struct hs_runtime *hsrt)
 		{ 0, UINT8_MAX	}
 	};
 
-	assert(hsrt && hsrt->trees);
-	assert(hsrt->part->subsets[hsrt->cur].rules);
-	assert(hsrt->part->subsets[hsrt->cur].rule_num > 1);
+	//assert(hsrt && hsrt->trees);
+	//assert(hsrt->part->subsets[hsrt->cur].rules);
+	//assert(hsrt->part->subsets[hsrt->cur].rule_num > 1);
+
+	if (hsrt == NULL || hsrt->trees == NULL ||
+		hsrt->part->subsets[hsrt->cur].rules == NULL ||
+		hsrt->part->subsets[hsrt->cur].rule_num <= 1) {
+		return -EINVAL;
+	}
 
 	MPOOL_RESET(&hsrt->node_pool);
 	node_id = MPOOL_MALLOC(hsn_pool, &hsrt->node_pool);
@@ -209,12 +215,13 @@ static int hs_process(struct hs_runtime *hsrt)
 
 		/* choose split dimension */
 		split_dim = hs_dim_decision(hsrt, ent);
-		if (split_dim == DIM_INV) {
+		if (split_dim <= DIM_INV || split_dim >= DIM_MAX) {
 			goto err;
 		}
 
 		/* choose split point */
-		assert(split_dim > DIM_INV && split_dim < DIM_MAX);
+		//assert(split_dim > DIM_INV && split_dim < DIM_MAX);
+
 		split_pnt = hs_point_decision(&hsrt->shadow_rngs[split_dim]);
 
 		p_node = MPOOL_ADDR(&hsrt->node_pool, ent->node_id);
@@ -261,8 +268,9 @@ static int hs_gather(struct hs_runtime *hsrt)
 	p_tree = &hsrt->trees[hsrt->cur];
 	p_tree->root_node = root_node;
 	//p_tree->depth_avg /= p_tree->enode_num;
-	assert(p_tree->inode_num == MPOOL_COUNT(p_node_pool));
-	assert(p_tree->enode_num == p_tree->inode_num + 1);
+
+	//assert(p_tree->inode_num == MPOOL_COUNT(p_node_pool));
+	//assert(p_tree->enode_num == p_tree->inode_num + 1);
 
 	return 0;
 }
@@ -281,7 +289,7 @@ static int hs_dim_decision(struct hs_runtime			*hsrt,
 	//	   ent, ent->rule_id, ent->rule_num);
 
 	//assert(ent && ent->rule_id && ent->rule_num > 1);
-	if (ent->rule_num < 2) {
+	if (ent == NULL || ent->rule_id == NULL || ent->rule_num <= 1) {
 		return 0;
 	}
 
@@ -316,12 +324,18 @@ static uint32_t hs_point_decision(const struct shadow_range *shadow_rng)
 {
 	int i, measure, measure_max, rng_num_max;
 
-	assert(shadow_rng && shadow_rng->pnts && shadow_rng->cnts);
+	//assert(shadow_rng && shadow_rng->pnts && shadow_rng->cnts);
+	if (shadow_rng == NULL || shadow_rng->pnts == NULL || shadow_rng->cnts == NULL) {
+		return 0;
+	}
 
 	measure = shadow_rng->cnts[0];
 	measure_max = shadow_rng->total >> 1; /* binary cut */
 	rng_num_max = (shadow_rng->point_num >> 1) - 1;
-	assert(rng_num_max > 0);
+	//assert(rng_num_max > 0);
+	if (rng_num_max <= 0) {
+		return 0;
+	}
 
 	for (i = 1; i < rng_num_max && measure < measure_max; i++) {
 		measure += shadow_rng->cnts[i];
@@ -423,7 +437,11 @@ static int hs_space_is_fully_covered(uint32_t (*left)[2], uint32_t (*right)[2])
 {
 	int i;
 
-	assert(left && right);
+	//assert(left && right);
+
+	if (left == NULL || right == NULL) {
+		return 0;
+	}
 
 	for (i = 0; i < DIM_MAX; i++) {
 		/* left is fully covered by right */

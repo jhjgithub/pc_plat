@@ -56,7 +56,7 @@ struct platform_config {
 };
 
 
-static void f_print_help(void)
+static void print_help(void)
 {
 	const char *s_help =
 		"NSLab Packet Classification Platform\n"
@@ -77,8 +77,7 @@ static void f_print_help(void)
 	return;
 }
 
-static void f_parse_args(struct platform_config *p_plat_cfg,
-						 int argc, char *argv[])
+static void parse_args(struct platform_config *plat_cfg, int argc, char *argv[])
 {
 	int option;
 	const char *s_opts = "r:f:t:p:g:h";
@@ -92,10 +91,10 @@ static void f_parse_args(struct platform_config *p_plat_cfg,
 		{ NULL,		0,				   NULL, 0	 }
 	};
 
-	assert(p_plat_cfg && argv);
+	assert(plat_cfg && argv);
 
 	if (argc < 2) {
-		f_print_help();
+		print_help();
 		exit(-1);
 	}
 
@@ -109,67 +108,67 @@ static void f_parse_args(struct platform_config *p_plat_cfg,
 			}
 
 			if (option == 'r') {
-				p_plat_cfg->s_rule_file = optarg;
+				plat_cfg->s_rule_file = optarg;
 			}
 			else if (option == 't') {
-				p_plat_cfg->s_trace_file = optarg;
+				plat_cfg->s_trace_file = optarg;
 			}
 
 			break;
 
 		case 'f':
 			if (!strcmp(optarg, "wustl")) {
-				p_plat_cfg->rule_fmt = RULE_FMT_WUSTL;
+				plat_cfg->rule_fmt = RULE_FMT_WUSTL;
 			}
 			else if (!strcmp(optarg, "wustl_g")) {
-				p_plat_cfg->rule_fmt = RULE_FMT_WUSTL_G;
+				plat_cfg->rule_fmt = RULE_FMT_WUSTL_G;
 			}
 
 			break;
 
 		case 'p':
 			if (!strcmp(optarg, "hs")) {
-				p_plat_cfg->pc_algo = PC_ALGO_HYPERSPLIT;
+				plat_cfg->pc_algo = PC_ALGO_HYPERSPLIT;
 			}
 
 			break;
 
 		case 'g':
 			if (!strcmp(optarg, "rfg")) {
-				p_plat_cfg->grp_algo = GRP_ALGO_RFG;
+				plat_cfg->grp_algo = GRP_ALGO_RFG;
 			}
 
 			break;
 
 		case 'h':
-			f_print_help();
+			print_help();
 			exit(0);
 
 		default:
-			f_print_help();
+			print_help();
 			exit(-1);
 		}
 	}
 
-	if (!p_plat_cfg->s_rule_file) {
+	if (!plat_cfg->s_rule_file) {
 		fprintf(stderr, "Not specify the rule file\n");
 		exit(-1);
 	}
 
-	if (p_plat_cfg->rule_fmt == RULE_FMT_INV) {
+	if (plat_cfg->rule_fmt == RULE_FMT_INV) {
 		fprintf(stderr, "Not specify the rule format\n");
 		exit(-1);
 	}
 
-	if (p_plat_cfg->pc_algo != PC_ALGO_INV &&
-		p_plat_cfg->grp_algo != GRP_ALGO_INV) {
+	if (plat_cfg->pc_algo != PC_ALGO_INV &&
+		plat_cfg->grp_algo != GRP_ALGO_INV) {
 		fprintf(stderr, "Cannot run in hybrid mode [pc & grp]\n");
 		exit(-1);
 	}
-	else if (p_plat_cfg->pc_algo != PC_ALGO_INV) {
+	else if (plat_cfg->pc_algo != PC_ALGO_INV) {
 		fprintf(stderr, "Run in pc mode\n");
 	}
-	else if (p_plat_cfg->grp_algo != GRP_ALGO_INV) {
+	else if (plat_cfg->grp_algo != GRP_ALGO_INV) {
 		fprintf(stderr, "Run in grp mode\n");
 	}
 	else {
@@ -180,7 +179,7 @@ static void f_parse_args(struct platform_config *p_plat_cfg,
 	return;
 }
 
-static uint64_t f_make_timediff(const struct timespec	stop,
+static uint64_t make_timediff(const struct timespec	stop,
 								const struct timespec	start)
 {
 	return (stop.tv_sec * 1000000ULL + stop.tv_nsec / 1000)
@@ -283,7 +282,7 @@ int main(int argc, char *argv[])
 		.grp_algo		= GRP_ALGO_INV
 	};
 
-	f_parse_args(&plat_cfg, argc, argv);
+	parse_args(&plat_cfg, argc, argv);
 
 	/*
 	 * Loading classifier
@@ -391,7 +390,7 @@ int main(int argc, char *argv[])
 
 		fprintf(stderr, "Grouping pass\n");
 		fprintf(stderr, "Time for grouping: %" PRIu64 "(us)\n",
-				f_make_timediff(stoptime, starttime));
+				make_timediff(stoptime, starttime));
 
 		dump_partition(GRP_FILE, &pa_grp);
 
@@ -418,7 +417,7 @@ int main(int argc, char *argv[])
 
 	fprintf(stderr, "Building pass\n");
 	fprintf(stderr, "Time for building: %" PRIu64 "(us)\n",
-			f_make_timediff(stoptime, starttime));
+			make_timediff(stoptime, starttime));
 
 	unload_partition(&pa);
 
@@ -443,11 +442,10 @@ int main(int argc, char *argv[])
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &stoptime);
-	timediff = f_make_timediff(stoptime, starttime);
+	timediff = make_timediff(stoptime, starttime);
 
 	int i;
 	for (i = 0; i < t.pkt_num; i++) {
-
 		if (t.pkts[i].found != t.pkts[i].match_rule) {
 			fprintf(stderr, "packet %d match %d, but should match %d\n",
 					i, t.pkts[i].found, t.pkts[i].match_rule);
