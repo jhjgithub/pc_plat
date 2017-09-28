@@ -19,6 +19,9 @@
 #include <errno.h>
 #include <getopt.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include "common/rule_trace.h"
 #include "clsfy/hypersplit.h"
@@ -263,6 +266,67 @@ static void f_destroy(int pc_algo, void *built_result)
 }
 
 #endif
+
+size_t hs_tree_memory_size(void *hypersplit, uint32_t *total_node)
+{
+	const struct hs_result *hsret;
+	size_t tmem = 0;
+	uint32_t nodes = 0;
+
+	hsret = (const struct hs_result*)hypersplit;
+	if (!hsret || !hsret->trees) {
+		return 0;
+	}
+
+	int j;
+
+	for (j = 0; j < hsret->tree_num; j++) {
+		struct hs_tree *t = &hsret->trees[j];
+
+		tmem += (t->inode_num * sizeof(struct hs_node));
+		tmem += (t->enode_num * sizeof(struct hs_node));
+
+		nodes += t->inode_num;
+		nodes += t->enode_num;
+	}
+
+	if (total_node) {
+		*total_node = nodes;
+	}
+
+	return tmem;
+}
+
+void save_hypersplit(void *hs)
+{
+	int fd;
+	const struct hs_result *hsret;
+	hsret = (const struct hs_result*)hs;
+	
+	fd = open("hs.bin", O_WRONLY | O_TRUNC, 0644);
+
+	if (fd == -1) {
+		printf("cannot open hs.bin \n");
+		return;
+	}
+
+	ssize_t l;
+
+	l = write(fd, &hsret->tree_num, sizeof(int));
+	l = write(fd, &hsret->def_rule, sizeof(int));
+
+	int j;
+
+	for (j = 0; j < hsret->tree_num; j++) {
+		struct hs_tree *t = &hsret->trees[j];
+
+		l = write(fd, &t->inode_num, sizeof(int));
+		l = write(fd, &t->enode_num, sizeof(int));
+		l = write(fd, &t->depth_max, sizeof(int));
+	}
+
+
+}
 
 
 int main(int argc, char *argv[])
