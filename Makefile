@@ -67,8 +67,8 @@ run_pc:
 #	./bin/pc_plat -p hs -f wustl_g -r rule_trace/rules/rfg/fw1_10K -t rule_trace/traces/origin/fw1_10K_trace
 #	./bin/pc_plat -g rfg -f wustl -r rule_trace/rules/origin/fw1_10K
 #	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/acl1_10K -t rule_trace/traces/origin/acl1_10K_trace
-#	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw1_10K -t rule_trace/traces/origin/fw1_10K_trace
-	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw2 -t rule_trace/traces/origin/fw2_trace
+	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw1_10K -t rule_trace/traces/origin/fw1_10K_trace
+#	./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw2 -t rule_trace/traces/origin/fw2_trace
 #	gdb -ex=r --args ./bin/pc_plat -p hs -f wustl -r rule_trace/rules/origin/fw2 -t rule_trace/traces/origin/fw2_trace
 
 format: $(SRC) $(HEADERS)

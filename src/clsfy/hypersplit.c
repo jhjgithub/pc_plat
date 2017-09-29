@@ -257,7 +257,19 @@ static int hs_gather(struct hs_runtime *hsrt)
 	struct hs_tree *p_tree;
 	struct hsn_pool *p_node_pool;
 
+	int node_cnt;
+
 	p_node_pool = &hsrt->node_pool;
+	node_cnt = MPOOL_COUNT(p_node_pool);
+	p_tree = &hsrt->trees[hsrt->cur];
+
+	//assert(p_tree->inode_num == MPOOL_COUNT(p_node_pool));
+	//assert(p_tree->enode_num == p_tree->inode_num + 1);
+
+	if (p_tree->inode_num != node_cnt || p_tree->enode_num != (node_cnt + 1)) {
+		return -EINVAL;
+	}
+
 	root_node = realloc(MPOOL_BASE(p_node_pool),
 						MPOOL_COUNT(p_node_pool) * sizeof(*root_node));
 	if (!root_node) {
@@ -265,12 +277,8 @@ static int hs_gather(struct hs_runtime *hsrt)
 	}
 
 	MPOOL_BASE(p_node_pool) = NULL;
-	p_tree = &hsrt->trees[hsrt->cur];
 	p_tree->root_node = root_node;
 	//p_tree->depth_avg /= p_tree->enode_num;
-
-	//assert(p_tree->inode_num == MPOOL_COUNT(p_node_pool));
-	//assert(p_tree->enode_num == p_tree->inode_num + 1);
 
 	return 0;
 }

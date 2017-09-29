@@ -284,10 +284,7 @@ size_t hs_tree_memory_size(void *hypersplit, uint32_t *total_node)
 		struct hs_tree *t = &hsret->trees[j];
 
 		tmem += (t->inode_num * sizeof(struct hs_node));
-		tmem += (t->enode_num * sizeof(struct hs_node));
-
 		nodes += t->inode_num;
-		nodes += t->enode_num;
 	}
 
 	if (total_node) {
@@ -303,31 +300,113 @@ void save_hypersplit(void *hs)
 	const struct hs_result *hsret;
 	hsret = (const struct hs_result*)hs;
 	
-	fd = open("hs.bin", O_WRONLY | O_TRUNC, 0644);
+	fd = open("hs.bin", O_WRONLY | O_TRUNC | O_CREAT, 0644);
 
 	if (fd == -1) {
 		printf("cannot open hs.bin \n");
 		return;
 	}
 
-	ssize_t l;
+	ssize_t l=0;
 
 	l = write(fd, &hsret->tree_num, sizeof(int));
 	l = write(fd, &hsret->def_rule, sizeof(int));
 
-	int j;
+	if (l == 0) {
+	}
+
+	fprintf(stderr, "Saving Hypersplit \n");
+	fprintf(stderr, "Num Tree: %d \n", hsret->tree_num);
+	fprintf(stderr, "Def Rule: %d \n", hsret->def_rule);
+
+	int j, tmem=0, tnode=0;
 
 	for (j = 0; j < hsret->tree_num; j++) {
 		struct hs_tree *t = &hsret->trees[j];
+		int mlen = t->inode_num * sizeof(struct hs_node);
+
+		tmem += mlen;
+		tnode += t->inode_num;
+
+		fprintf(stderr, "#%d Tree: Node=%-5d, Mem=%-7d Bytes, Maxdepth=%d \n", 
+				j+1, t->inode_num, mlen, t->depth_max);
 
 		l = write(fd, &t->inode_num, sizeof(int));
-		l = write(fd, &t->enode_num, sizeof(int));
 		l = write(fd, &t->depth_max, sizeof(int));
+		l = write(fd, &mlen, sizeof(int));
+		l = write(fd, (void*)t->root_node, mlen);
 	}
 
+	close(fd);
+
+	fprintf(stderr, "Total: Node=%d, Mem=%d \n", tnode, tmem);
 
 }
 
+void* load_hypersplit(void)
+{
+	int fd;
+	struct hs_result *hs;
+	ssize_t l=0;
+
+	l = sizeof(struct hs_result);
+	hs = malloc(l);
+
+	if (hs == NULL) {
+		return NULL;
+	}
+
+	memset(hs, 0, l);
+
+	fd = open("hs.bin", O_RDONLY);
+
+	if (fd == -1) {
+		printf("cannot open hs.bin \n");
+		return NULL;
+	}
+
+	read(fd, &hs->tree_num, sizeof(int));
+	read(fd, &hs->def_rule, sizeof(int));
+
+	fprintf(stderr, "Loading Hypersplit \n");
+	fprintf(stderr, "Num Tree: %d \n", hs->tree_num);
+	fprintf(stderr, "Def Rule: %d \n", hs->def_rule);
+
+	hs->trees = malloc(sizeof(struct hs_tree) * hs->tree_num);
+
+	int j, tmem=0, tnode=0;
+
+	for (j = 0; j < hs->tree_num; j++) {
+		struct hs_tree *t = &hs->trees[j];
+		int mlen;
+
+		read(fd, &t->inode_num, sizeof(int));
+		t->enode_num = t->inode_num + 1;
+
+		read(fd, &t->depth_max, sizeof(int));
+		read(fd, &mlen, sizeof(int));
+
+		tnode += t->inode_num;
+		tmem += mlen;
+
+		if ((t->inode_num * sizeof(struct hs_node)) != mlen) {
+			fprintf(stderr, "something wrong: mlen=%d \n", mlen);
+		}
+
+		t->root_node = malloc(mlen);
+
+		read(fd, (void*)t->root_node, mlen);
+
+		fprintf(stderr, "#%d Tree: Node=%-5d, Mem=%-7d Bytes, Maxdepth=%d \n", 
+				j+1, t->inode_num, mlen, t->depth_max);
+	}
+
+	close(fd);
+
+	fprintf(stderr, "Total: Node=%d, Mem=%d \n", tnode, tmem);
+
+	return hs;
+}
 
 int main(int argc, char *argv[])
 {
@@ -501,12 +580,15 @@ int main(int argc, char *argv[])
 	clock_gettime(CLOCK_MONOTONIC, &starttime);
 
 	if (hs_search(&t, &result)) {
-		//fprintf(stderr, "Searching fail\n");
+		fprintf(stderr, "Searching fail\n");
 		//exit(-1);
 	}
 
 	clock_gettime(CLOCK_MONOTONIC, &stoptime);
 	timediff = make_timediff(stoptime, starttime);
+	if (timediff == 0) {
+		timediff = 1;
+	}
 
 	int i;
 	for (i = 0; i < t.pkt_num; i++) {
@@ -521,8 +603,21 @@ int main(int argc, char *argv[])
 	fprintf(stderr, "Searching speed: %lld(pps)\n",
 			(t.pkt_num * 1000000ULL) / timediff);
 
-	unload_trace(&t);
 
+	uint32_t tnode = 0;
+	size_t tmem;
+	tmem = hs_tree_memory_size(result, &tnode);
+	fprintf(stderr, "Total:  Nodes=%u, Mem=%lu Bytes \n", tnode, tmem);
+
+	save_hypersplit(result);
+
+	void* new_hs = load_hypersplit();
+	if (hs_search(&t, &new_hs)) {
+		fprintf(stderr, "Searching fail\n");
+	}
+	hs_destroy(&new_hs);
+
+	unload_trace(&t);
 	hs_destroy(&result);
 
 	return 0;
